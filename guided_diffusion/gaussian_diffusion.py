@@ -13,7 +13,7 @@ import torch as th
 
 from .nn import mean_flat
 from .losses import normal_kl, discretized_gaussian_log_likelihood
-
+from .resize_right import resize
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     """
@@ -449,10 +449,15 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
-        resizers=None,
-        range_t=0,
+        N=None,
+        D=8,
+        scale=1, 
     ):
         """
+        Edit to support dda
+        - remove resizers, range_t
+        - add N, D, and scale
+
         Generate samples from the model.
 
         :param model: the model module.
@@ -482,8 +487,9 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             device=device,
             progress=progress,
-            resizers=resizers,
-            range_t=range_t,
+            N=N,
+            D=D,
+            scale=scale,
         ):
             final = sample
 
@@ -502,8 +508,9 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
-        resizers=None,
-        range_t=0,
+        N=None,
+        D=8,
+        scale=1, 
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -527,9 +534,9 @@ class GaussianDiffusion:
             from tqdm.auto import tqdm
 
             indices = tqdm(indices)
-
-        if resizers is not None:
-            down, up = resizers
+        # for dda, we need to have $/phi_D$ as linear low-filter pass
+        shape_u = (shape[0], 3, shape[2], shape[3]) # upsampled/original shape (batch, 3, height, width)
+        shape_d = (shape[0], 3, int(shape[2] /D) , int(shape[3] /D)) # downsampled shape (batch, 3, height/D, width/D)
 
         for i in indices:
             t = th.tensor([i] * shape[0], device=device)
@@ -543,15 +550,16 @@ class GaussianDiffusion:
                     cond_fn=cond_fn,
                     model_kwargs=model_kwargs,
                 )
+                # calculate the difference
 
-                #### ILVR ####
-                if resizers is not None:
-                    if i > range_t:
-                        out["sample"] = out["sample"] - up(down(out["sample"])) + up(
-                            down(self.q_sample(model_kwargs["ref_img"], t, th.randn(*shape, device=device))))
+                difference = resize(resize(model_kwargs["ref_img"], scale_factors=1.0/D, out_shape=shape_d), scale_factors=D, out_shape=shape_u) - resize(resize(out["pred_xstart"], scale_factors=1.0/D, out_shape=shape_d), scale_factors=D, out_shape=shape_u)
+                norm = th.linalg.norm(difference)
+                norm_grad = th.autograd.grad(outputs=norm, inputs=img)[0]
+                out["sample"] -= norm_grad * scale
 
                 yield out
                 img = out["sample"]
+                img = img.detach_()
 
     def ddim_sample(
         self,
