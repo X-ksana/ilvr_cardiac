@@ -15,9 +15,20 @@ from guided_diffusion.script_util import (
 )
 from guided_diffusion.train_util import TrainLoop
 
+import random
+import numpy as np
+import torch as th
 
 def main():
     args = create_argparser().parse_args()
+    if args.seed is not None:
+        th.manual_seed(args.seed)
+        np.random.seed(args.seed)
+        random.seed(args.seed)
+        th.cuda.manual_seed_all(args.seed)
+        # For full determinism, but may impact performance
+        # th.backends.cudnn.deterministic = True
+        # th.backends.cudnn.benchmark = False
 
     dist_util.setup_dist()
     logger.configure()
@@ -54,6 +65,7 @@ def main():
         schedule_sampler=schedule_sampler,
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
+        seed=args.seed,
     ).run_loop()
 
 
@@ -72,6 +84,7 @@ def create_argparser():
         resume_checkpoint="",
         use_fp16=False,
         fp16_scale_growth=1e-3,
+        seed=42,# for reproducibility
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

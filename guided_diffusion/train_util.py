@@ -13,6 +13,10 @@ from .fp16_util import MixedPrecisionTrainer
 from .nn import update_ema
 from .resample import LossAwareSampler, UniformSampler
 
+import random
+import numpy as np
+import torch as th
+
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
 # 20-21 within the first ~1K steps of training.
@@ -38,6 +42,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
+        seed=42,
     ):
         self.model = model
         self.diffusion = diffusion
@@ -58,7 +63,7 @@ class TrainLoop:
         self.schedule_sampler = schedule_sampler or UniformSampler(diffusion)
         self.weight_decay = weight_decay
         self.lr_anneal_steps = lr_anneal_steps
-
+        self.seed = seed
         self.step = 0
         self.resume_step = 0
         self.global_batch = self.batch_size * dist.get_world_size()
@@ -114,11 +119,22 @@ class TrainLoop:
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
             if dist.get_rank() == 0:
                 logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
-                self.model.load_state_dict(
-                    dist_util.load_state_dict(
-                        resume_checkpoint, map_location=dist_util.dev()
-                    )
+                # 1. load ckpt into single state_dict variable
+                state_dict = dist_util.load_state_dict(
+                    resume_checkpoint, map_location=dist_util.dev()
                 )
+                # 2. Restore the model and optimizer state
+                self.mp_trainer.load_state_dict(state_dict)
+
+                # 3. Restore the rng
+                try:
+                    th.set_rng_state(state_dict["torch_rng_state"])
+                    th.cuda.set_rng_state(state_dict["cuda_rng_state"])
+                    np.random.set_state(state_dict["numpy_rng_state"])
+                    random.setstate(state_dict["random_rng_state"])
+                except KeyError:
+                    logger.log("Could not find RNG states in checkpoint. Starting with new random state.")
+                
 
         dist_util.sync_params(self.model.parameters())
 
@@ -232,6 +248,12 @@ class TrainLoop:
     def save(self):
         def save_checkpoint(rate, params):
             state_dict = self.mp_trainer.master_params_to_state_dict(params)
+            # --- TO SAVE RNG STATES ---
+            state_dict["torch_rng_state"] = th.get_rng_state()
+            state_dict["cuda_rng_state"] = th.cuda.get_rng_state()
+            state_dict["numpy_rng_state"] = np.random.get_state()
+            state_dict["random_rng_state"] = random.getstate()
+
             if dist.get_rank() == 0:
                 logger.log(f"saving model {rate}...")
                 if not rate:

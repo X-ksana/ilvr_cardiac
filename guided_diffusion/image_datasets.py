@@ -6,6 +6,8 @@ import blobfile as bf
 from mpi4py import MPI
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
+import os
+import nibabel as nib # for loading nifti files
 
 
 def load_data(
@@ -19,6 +21,13 @@ def load_data(
     random_flip=True,
 ):
     """
+    We need support for image-mask pairs as input
+    For sampling, only refernce image is needed
+    For training, training image-mask pairs are needed
+    Image-mask pairs are stored in a single directory
+    Our image is single channel, mask is single channel
+    
+
     For a dataset, create a generator over (images, kwargs) pairs.
 
     Each images is an NCHW float tensor, and the kwargs dict contains zero or
@@ -39,6 +48,7 @@ def load_data(
     if not data_dir:
         raise ValueError("unspecified data directory")
     all_files = _list_image_files_recursively(data_dir)
+    # Not using classes for now, kiv with pathology labels
     classes = None
     if class_cond:
         # Assume classes are the first part of the filename,
