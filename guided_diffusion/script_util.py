@@ -46,6 +46,7 @@ def model_and_diffusion_defaults():
     """
     res = dict(
         image_size=64,
+        in_channels=1,
         num_channels=128,
         num_res_blocks=2,
         num_heads=4,
@@ -75,6 +76,7 @@ def create_model_and_diffusion(
     image_size,
     class_cond,
     learn_sigma,
+    in_channels,
     num_channels,
     num_res_blocks,
     channel_mult,
@@ -98,6 +100,7 @@ def create_model_and_diffusion(
 ):
     model = create_model(
         image_size,
+        in_channels,
         num_channels,
         num_res_blocks,
         channel_mult=channel_mult,
@@ -129,6 +132,7 @@ def create_model_and_diffusion(
 
 def create_model(
     image_size,
+    in_channels, # add for flexibility of input channels like npy
     num_channels,
     num_res_blocks,
     channel_mult="",
@@ -165,9 +169,9 @@ def create_model(
 
     return UNetModel(
         image_size=image_size,
-        in_channels=3,
+        in_channels=in_channels, # changed from 3 channels to flexible number
         model_channels=num_channels,
-        out_channels=(3 if not learn_sigma else 6),
+        out_channels=(in_channels if not learn_sigma else in_channels*2),
         num_res_blocks=num_res_blocks,
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,
