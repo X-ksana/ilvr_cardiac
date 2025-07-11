@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 
 from PIL import Image
@@ -15,16 +15,16 @@ from data_preprocessing_helpers import load_and_process_npy_pair,normalise_to_mo
 
 def load_data(
     *,
-    data_dir,
-    batch_size,
-    image_size, # for resizing not cropping
-    class_cond=False,
-    deterministic=False,
-    random_crop=False,
-    random_flip=False,
-    mask_dir=None, # add mask dir
-    num_mask_classes=4
-):
+    data_dir:str,
+    batch_size:int,
+    image_size:int, # for resizing not cropping
+    class_cond:bool=False,
+    deterministic:bool=False,
+    random_crop:bool=False,
+    random_flip:bool=False,
+    mask_dir:Optional[str]=None, # add mask dir
+    num_mask_classes:int=4
+) -> Tuple[DataLoader, ImageDataset]:
     """
     We need support for image-mask pairs as input
     For sampling, only refernce image is needed
@@ -56,7 +56,10 @@ def load_data(
     all_files = _list_image_files_recursively(data_dir)
     
     allowed_extensions = ['.npy']
-    all_files = _list_image_files_recursively(data_dir, allowed_extensions)
+    all_image_files = _list_image_files_recursively(data_dir, allowed_extensions)
+    all_image_files = [f for f in all_image_files if '_seg' not in bf.basename(f)]
+
+   # all_files = _list_image_files_recursively(data_dir, allowed_extensions)
     
     # If mask_dir provided, verifying matching mask files exists
     
@@ -65,25 +68,17 @@ def load_data(
     if mask_dir:
         print(f"Mask directory provided. Creating image-to-mask mapping...")
         mask_map = {}
-        for img_path in all_files:
+        for img_path in all_image_files:
            # img_name_base = os.path.basename(img_path).split('.')[0]
             img_name_base = bf.basename(img_path).split('.')[0]
-            # Handle both '_seg' and non-seg suffixes
-            if '_seg' in img_name_base:
-                # This is a mask
-                image_name_base = img_name_base.replace('_seg', '')
-                image_path_lookup = bf.join(data_dir, f"{image_name_base}.npy")
-                if bf.exists(image_path_lookup):
-                    mask_map[image_path_lookup] = img_path
+            mask_path = bf.join(mask_dir, f"{img_name_base}_seg.npy")
+            if bf.exists(mask_path):
+                mask_map[img_path] = mask_path
             else:
-                # This is an image file, find mask
-                mask_path = bf.join(mask_dir,f"{img_name_base}_seg.npy")
-                if bf.exists(mask_path):
-                    mask_map[img_path] = mask_path
-            
-        print("Mapping complete.")
-        # Filter all_files to only include images that have a mask
-        all_files = sorted(list(mask_map.keys()))
+                print(f"Warning: Missing mask file for {img_name_base}. Skipping this image.")
+
+        all_image_files = sorted(list(mask_map.keys()))
+        print(f"Mapping complete. Found {len(all_image_files)} image-mask pairs.")
 
 
     # Not using classes for now, kiv with pathology labels
@@ -98,7 +93,8 @@ def load_data(
     dataset = ImageDataset(
         resolution=image_size,
         image_paths=all_files,
-        mask_map=None, # Add mask_map
+        mask_map=mask_map, # Add mask_map
+        num_mask_classes=num_mask_classes,
         classes=classes,
         shard=MPI.COMM_WORLD.Get_rank(),
         num_shards=MPI.COMM_WORLD.Get_size(),
@@ -117,11 +113,11 @@ def load_data(
         yield from loader
 
 
-def _list_image_files_recursively(data_dir:str,allowed_extensions:list) -> list:
+def _list_image_files_recursively(data_dir:str,allowed_extensions: List[str]) -> List[str]:
     results = []
-    for entry in sorted(bf.listdir(data_dir)):
-        full_path = bf.join(data_dir, entry)
-        if bf.isdir(full_path):
+    for entry in sorted(os.listdir(data_dir)):
+        full_path = os.path.join(data_dir, entry)
+        if os.path.isdir(full_path):
             results.extend(_list_image_files_recursively(full_path, allowed_extensions))
         elif any(full_path.lower().endswith(ext) for ext in allowed_extensions):
             results.append(full_path)
@@ -133,22 +129,22 @@ def _list_image_files_recursively(data_dir:str,allowed_extensions:list) -> list:
 class ImageDataset(Dataset):
     def __init__(
         self,
-        resolution,
-        image_paths,
-        mask_map=None, # Add mask_map
-        num_mask_classes=4,
-        classes=None,
-        shard=0,
-        num_shards=1,
-        random_crop=False,
-        random_flip=False,
+        resolution:int,
+        image_paths:List[str],
+        mask_map:Optional[dict] = None, # Add mask_map
+        num_mask_classes:int = 4,
+        classes:Optional[List]=None,
+        shard:int = 0,
+        num_shards:int =1,
+      #  random_crop:bool = False,
+        random_flip: bool = False,
     ):
         super().__init__()
         self.resolution = resolution
         self.mask_map = mask_map
       #  self.local_images = image_paths[shard:][::num_shards]
         self.local_classes = None if classes is None else classes[shard:][::num_shards]
-        self.random_crop = random_crop
+    #    self.random_crop = random_crop
         self.random_flip = random_flip
 
     # Build a list of all slices from all files
