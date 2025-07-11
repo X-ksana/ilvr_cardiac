@@ -26,7 +26,7 @@ def normalise_to_model_range(image_array: np.ndarray) -> np.ndarray:
     if max_val - min_val > 1e-6: # ensure div nonzero
         scaled_image = (clipped_image - min_val)/(max_val - min_val)
     else:
-        scaled_image = np.zeros_like(scaled_image) # handle constant image
+        scaled_image = np.zeros_like(clipped_image) # handle constant image
     # Shift to [-1,1]
     final_image = (scaled_image*2.0)-1.0
     return final_image
@@ -51,12 +51,14 @@ def one_hot_encode_mask(
     """
     mask_array = mask_array.astype(np.int64)
     mask_array[mask_array < 0] = 0  # Map negative labels to background
-    h, w = mask_array.shape
-    one_hot = np.zeros((h, w, num_classes), dtype=np.float32)
-
-    for i in range(num_classes):
-        one_hot[:, :, i] = (mask_array == i)
     
+    #h, w = mask_array.shape
+    #one_hot = np.zeros((h, w, num_classes), dtype=np.float32)
+
+    #for i in range(num_classes):
+    #    one_hot[:, :, i] = (mask_array == i)
+    one_hot = (np.arange(num_classes) == mask_array[...,None]).astype(np.float32)
+
     # Transpose from (H, W, C) to (C, H, W) for PyTorch
     one_hot_tensor = torch.from_numpy(one_hot).permute(2, 0, 1)
 
