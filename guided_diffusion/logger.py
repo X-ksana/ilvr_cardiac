@@ -14,6 +14,8 @@ import tempfile
 import warnings
 from collections import defaultdict
 from contextlib import contextmanager
+import wandb
+
 
 DEBUG = 10
 INFO = 20
@@ -200,6 +202,13 @@ def make_output_format(format, ev_dir, log_suffix=""):
         return CSVOutputFormat(osp.join(ev_dir, "progress%s.csv" % log_suffix))
     elif format == "tensorboard":
         return TensorBoardOutputFormat(osp.join(ev_dir, "tb%s" % log_suffix))
+    elif format == "wandb":
+        # Expects project, entity, and name to be passed in kwargs
+        return WandbOutputFormat(
+            project=kwargs.get("wandb_project", "diffusion_project"),
+            entity=kwargs.get("wandb_entity"),
+            name=kwargs.get("wandb_run_name")
+        )
     else:
         raise ValueError("Unknown format specified: %s" % (format,))
 
@@ -439,7 +448,7 @@ def mpi_weighted_mean(comm, local_name2valcount):
         return {}
 
 
-def configure(dir=None, format_strs=None, comm=None, log_suffix=""):
+def configure(dir=None, format_strs=None, comm=None, log_suffix="", **kwargs):
     """
     If comm is provided, average all numerical stats across that comm
     """
@@ -464,7 +473,7 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=""):
         else:
             format_strs = os.getenv("OPENAI_LOG_FORMAT_MPI", "log").split(",")
     format_strs = filter(None, format_strs)
-    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
+    output_formats = [make_output_format(f, dir, log_suffix, **kwargs) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, comm=comm)
     if output_formats:
@@ -492,4 +501,21 @@ def scoped_configure(dir=None, format_strs=None, comm=None):
     finally:
         Logger.CURRENT.close()
         Logger.CURRENT = prevlogger
+
+# Add wandb logging class
+class WandbOutputFormat(KVWriter):
+    """
+    Dumps key/value pairs into weights and biases
+    """
+
+    def __init__(self, project, entity, name):
+        # Initialise W&B
+        wandb.init(project=project, entity=entity, name=name)
+
+    def writekvs(self, kvs):
+        # wandb.log expects single dictionary
+        wandb.log(kvs)
+
+    def close(self):
+        wandb.finish()
 
