@@ -31,7 +31,37 @@ def main():
         # th.backends.cudnn.benchmark = False
 
     dist_util.setup_dist()
-    logger.configure()
+
+    wandb_config = {
+        "learning_rate": args.lr,
+        "batch_size": args.batch_size,
+        "microbatch": args.microbatch,
+        "image_size": args.image_size,
+        "diffusion_steps": args.diffusion_steps,
+        "noise_schedule": args.noise_schedule,
+        "use_fp16": args.use_fp16,
+        "ema_rate": args.ema_rate,
+        "in_channels": args.in_channels,
+        "out_channels": args.out_channels,
+        "learn_sigma": args.learn_sigma,
+        "num_res_blocks": args.num_res_blocks,
+        "attention_resolutions": args.attention_resolutions,
+        "dropout": args.dropout,
+        "use_scale_shift_norm": args.use_scale_shift_norm,
+        "resblock_updown": args.resblock_updown,
+        "timestep_respacing": args.timestep_respacing,
+        "weight_decay": args.weight_decay,
+        "lr_anneal_steps": args.lr_anneal_steps,
+    }
+
+    logger.configure(
+        format_strs=["stdout", "log", "csv", "wandb"], # Add "wandb" here
+        # Pass W&B details as kwargs
+        wandb_project="DDA_Cardiac",
+        wandb_entity=None, #  username
+        wandb_run_name=f"DDAC-{args.diffusion_steps}-{args.image_size}", #  run name
+        wandb_config=wandb_config
+    )
 
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(

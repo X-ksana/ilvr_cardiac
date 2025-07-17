@@ -46,7 +46,7 @@ def model_and_diffusion_defaults():
     """
     res = dict(
         image_size=64,
-        in_channels=1,
+        in_channels=2,
         num_channels=128,
         num_res_blocks=2,
         num_heads=4,
@@ -256,7 +256,7 @@ def create_classifier(
 
     return EncoderUNetModel(
         image_size=image_size,
-        in_channels=3,
+        in_channels=2,
         model_channels=classifier_width,
         out_channels=1000,
         num_res_blocks=classifier_depth,
@@ -369,9 +369,9 @@ def sr_create_model(
 
     return SuperResModel(
         image_size=large_size,
-        in_channels=3, # kiv adjust to flexible input
+        in_channels=2, # kiv adjust to flexible input
         model_channels=num_channels,
-        out_channels=(3 if not learn_sigma else 6),
+        out_channels=(2 if not learn_sigma else 4),
         num_res_blocks=num_res_blocks,
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,

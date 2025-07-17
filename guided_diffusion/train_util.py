@@ -16,6 +16,7 @@ from .resample import LossAwareSampler, UniformSampler
 import random
 import numpy as np
 import torch as th
+import wandb
 
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
@@ -42,6 +43,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
+        log_samples_interval=500, # Control sample logging frequency for wandb
         seed=42,
     ):
         self.model = model
@@ -56,6 +58,7 @@ class TrainLoop:
             else [float(x) for x in ema_rate.split(",")]
         )
         self.log_interval = log_interval
+        self.log_samples_interval = log_samples_interval
         self.save_interval = save_interval
         self.resume_checkpoint = resume_checkpoint
         self.use_fp16 = use_fp16
@@ -175,6 +178,11 @@ class TrainLoop:
             self.run_step(batch, cond)
             if self.step % self.log_interval == 0:
                 logger.dumpkvs()
+            
+            # Periodically log a batch of geenrated samples
+            if self.step % self.log_samples_interval == 0:
+                self.log_samples()
+            
             if self.step % self.save_interval == 0:
                 self.save()
                 # Run for a finite amount of time in integration tests.
@@ -185,6 +193,50 @@ class TrainLoop:
         if (self.step - 1) % self.save_interval != 0:
             self.save()
 
+    
+    # Add to TrainLoop class
+
+    def log_samples(self):
+        """
+        Generate a batch of samples from the model and logs them to wandb
+        """
+        self.model.eval()
+        logger.log("Logging a batch of samples")
+
+        device = next(self.model.parameters()).device
+
+        # Generate small batch of samples
+        num_samples_to_log = 16
+        shape = (num_samples_to_log, 2, self.model.image_size, self.model.image_size) #  2 channels
+
+        # In case conditional
+        model_kwargs = {}
+        if self.model.num_classes is not None:
+            classes = th.randint(low=0, high=self.model.num_classes, size=(num_samples_to_log,), device=device)
+            model_kwargs["y"] = classes
+
+        samples = self.diffusion.p_sample_loop(
+            self.model,
+            shape,
+            clip_denoised=True,
+            model_kwargs=model_kwargs,
+        )
+        # Convert samples to the format wandb expects for images
+        # Rescale from [-1,1] to [0,255] and convert to numpy
+        # Bear in mind 2 channels, one is binary cardiac mri, one is mask in 4 classes
+        samples = ((samples+1)*127.5).clamp(0,255).to(torch.unit8)
+        samples = samples.permute(0,2,3,1) # NCHW to NHWC
+        samples = samples.contiguous().cpu().numpy
+
+        # Log images to wandb
+        wandb.log({
+            "samples":[wandb.Image(sample) for sample in samples]
+        })
+
+        self.model.train()
+
+
+    
     def run_step(self, batch, cond):
         self.forward_backward(batch, cond)
         took_step = self.mp_trainer.optimize(self.opt)
