@@ -102,7 +102,7 @@ def load_data(
     
     dataset = ImageDataset(
         resolution=image_size,
-        image_paths=all_files,
+        image_paths=all_image_files, # Use only image files
         mask_map=mask_map, # Add mask_map
         num_mask_classes=num_mask_classes,
         classes=classes,
