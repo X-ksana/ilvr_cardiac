@@ -52,8 +52,8 @@ python scripts/image_train.py \
     --use_fp16 False \
     --use_scale_shift_norm True \
     --timestep_respacing 100 \
-    --in_channels 2 \
-    --out_channels 4 \
+    --in_channels 4 \
+    --out_channels 8 \
     --mask_dir /scratch/scxcw/datasets/cardiac/nnUNet_preprocessed_2/Dataset114_MNMs/nnUNetPlans_2d \
     --num_mask_classes 4 \
     --lr 1e-4 \
