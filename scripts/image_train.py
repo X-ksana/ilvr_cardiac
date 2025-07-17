@@ -19,6 +19,8 @@ import random
 import numpy as np
 import torch as th
 
+import wandb
+
 def main():
     args = create_argparser().parse_args()
     if args.seed is not None:
@@ -54,13 +56,15 @@ def main():
         "lr_anneal_steps": args.lr_anneal_steps,
     }
 
+    wandb.init(
+      project="DDA_Cardiac",
+      wandb_entity=None, #  username
+      name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
+      config=wandb_config
+    )
+
     logger.configure(
         format_strs=["stdout", "log", "csv", "wandb"], # Add "wandb" here
-        # Pass W&B details as kwargs
-        wandb_project="DDA_Cardiac",
-        wandb_entity=None, #  username
-        wandb_run_name=f"DDAC-{args.diffusion_steps}-{args.image_size}", #  run name
-        wandb_config=wandb_config
     )
 
     logger.log("creating model and diffusion...")
