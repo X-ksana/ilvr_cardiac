@@ -207,7 +207,7 @@ class TrainLoop:
 
         # Generate small batch of samples
         num_samples_to_log = 16
-        shape = (num_samples_to_log, 2, self.model.image_size, self.model.image_size) #  2 channels
+        shape = (num_samples_to_log, self.model.in_channels, self.model.image_size, self.model.image_size) #  flex in channels
 
         # In case conditional
         model_kwargs = {}
