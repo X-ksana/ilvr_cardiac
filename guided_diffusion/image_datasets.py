@@ -156,6 +156,7 @@ class ImageDataset(Dataset):
         self.local_classes = None if classes is None else classes[shard:][::num_shards]
         self.random_crop = random_crop
         self.random_flip = random_flip
+        self.num_mask_classes = num_mask_classes
 
     # Build a list of all slices from all files
         self.samples = []
