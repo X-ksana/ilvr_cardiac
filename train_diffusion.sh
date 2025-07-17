@@ -55,7 +55,7 @@ python scripts/image_train.py \
     --in_channels 2 \
     --out_channels 4 \
     --mask_dir /scratch/scxcw/datasets/cardiac/nnUNet_preprocessed_2/Dataset114_MNMs/nnUNetPlans_2d \
-    --num_mask_classes 4 \ 
+    --num_mask_classes 4 \
     --lr 1e-4 \
     --batch_size 32 \
     --microbatch 4 \

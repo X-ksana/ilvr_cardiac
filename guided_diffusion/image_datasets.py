@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 import torch
 import os
 import nibabel as nib # for loading nifti files
-from data_preprocessing_helpers import load_and_process_npy_pair,normalise_to_model_range
+from .data_preprocessing_helpers import load_and_process_npy_pair,normalise_to_model_range
 
 def load_data(
     *,
