@@ -201,7 +201,7 @@ class ImageDataset(Dataset):
 
             # Use helper function to process
             arr, _ = load_and_process_npy_pair(
-                image_slice, mask_slice, self.num_mask_classes
+                image_slice, mask_slice, self.num_mask_classes,target_size=self.resolution
             )
         else:
             # Path for Image-Only Data (if needed) ---

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from typing import Tuple, Optional
-
+from skimage.transform import resize
 # --- Normalisation Helper ---
 
 def normalise_to_model_range(image_array: np.ndarray) -> np.ndarray:
@@ -74,7 +74,8 @@ def load_and_process_npy_pair(
         image_slice:np.ndarray,
         mask_slice:np.ndarray,
         num_mask_classes:int,
-        drop_background:bool=True        
+        drop_background:bool=True,
+        target_size: int = None  
 ) -> Tuple[torch.Tensor, int]:
     """
     Processes and combines a 2D image slice and a 2D mask slice.
@@ -93,11 +94,15 @@ def load_and_process_npy_pair(
         - The combined PyTorch tensor (C_total, H, W).
         - The total number of channels in the combined tensor.
     """
+    if image_slice.shape != (target_size, target_size):
+        image_slice = resize(image_slice, (target_size, target_size), order=1, preserve_range=True, anti_aliasing=True)
+    if mask_slice.shape != (target_size, target_size):
+        mask_slice = resize(mask_slice, (target_size, target_size), order=0, preserve_range=True, anti_aliasing=False)
+        mask_slice = mask_slice.astype(np.int64)
     # Validate shape
     if image_slice.ndim!=2 or mask_slice.ndim!=2:
         raise ValueError(f"Expected 2D arrays for slices. "
                          f"Got image shape {image_slice.shape} and mask shape {mask_slice.shape}")
-    
     if image_slice.shape!=mask_slice.shape:
         raise ValueError(f"Mismatched shape for image_slice,{image_slice.shape} and mask_slice, {mask_slice.shape}")
     
