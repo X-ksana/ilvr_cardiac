@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, TYPE_CHECKING
 
 
 from PIL import Image
@@ -13,6 +13,14 @@ import os
 import nibabel as nib # for loading nifti files
 from .data_preprocessing_helpers import load_and_process_npy_pair,normalise_to_model_range
 
+if TYPE_CHECKING:
+    from typing import Tuple
+    
+    # This prevents circular import issues
+    class ImageDataset(Dataset):
+        pass
+
+
 def load_data(
     *,
     data_dir:str,
@@ -24,7 +32,7 @@ def load_data(
     random_flip:bool=False,
     mask_dir:Optional[str]=None, # add mask dir
     num_mask_classes:int=4
-) -> Tuple[DataLoader, ImageDataset]:
+) -> Tuple[DataLoader, 'ImageDataset']:
     """
     We need support for image-mask pairs as input
     For sampling, only refernce image is needed
