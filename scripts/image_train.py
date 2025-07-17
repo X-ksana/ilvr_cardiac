@@ -56,14 +56,13 @@ def main():
         "lr_anneal_steps": args.lr_anneal_steps,
     }
 
-    wandb.init(
-      project="DDA_Cardiac",
-      name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
-      config=wandb_config
-    )
+
 
     logger.configure(
         format_strs=["stdout", "log", "csv", "wandb"], # Add "wandb" here
+        wandb_project="DDA_Cardiac",
+        wandb_name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
+        wandb_config=wandb_config
     )
 
     logger.log("creating model and diffusion...")

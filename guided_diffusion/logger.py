@@ -190,7 +190,7 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer = None
 
 
-def make_output_format(format, ev_dir, log_suffix=""):
+def make_output_format(format, ev_dir, log_suffix="",wandb_project=None, wandb_entity=None,wandb_name=None, wandb_config=None):
     os.makedirs(ev_dir, exist_ok=True)
     if format == "stdout":
         return HumanOutputFormat(sys.stdout)
@@ -205,9 +205,7 @@ def make_output_format(format, ev_dir, log_suffix=""):
     elif format == "wandb":
         # Expects project, entity, and name to be passed in kwargs
         return WandbOutputFormat(
-            project=kwargs.get("wandb_project", "diffusion_project"),
-            entity=kwargs.get("wandb_entity"),
-            name=kwargs.get("wandb_run_name")
+            wandb_project, wandb_entity, wandb_name, wandb_config
         )
     else:
         raise ValueError("Unknown format specified: %s" % (format,))
@@ -510,6 +508,11 @@ class WandbOutputFormat(KVWriter):
 
     def __init__(self, project, entity, name):
         # Initialise W&B
+        """
+        project="DDA_Cardiac",
+      name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
+      config=wandb_config
+        """
         wandb.init(project=project, entity=entity, name=name)
 
     def writekvs(self, kvs):
