@@ -95,6 +95,7 @@ def main():
         schedule_sampler=schedule_sampler,
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
+        log_samples_interval=args.log_samples_interval, # wandb
         seed=args.seed,
     ).run_loop()
 
@@ -110,6 +111,7 @@ def create_argparser():
         microbatch=-1,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values
         log_interval=10,
+        log_samples_interval=50, # wandb
         save_interval=10000,
         resume_checkpoint="",
         use_fp16=False,
