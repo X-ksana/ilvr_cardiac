@@ -506,14 +506,14 @@ class WandbOutputFormat(KVWriter):
     Dumps key/value pairs into weights and biases
     """
 
-    def __init__(self, project, entity, name):
+    def __init__(self, project, entity, name,config=None):
         # Initialise W&B
         """
         project="DDA_Cardiac",
       name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
       config=wandb_config
         """
-        wandb.init(project=project, entity=entity, name=name)
+        wandb.init(project=project, entity=entity, name=name, config=config)
 
     def writekvs(self, kvs):
         # wandb.log expects single dictionary
