@@ -146,7 +146,7 @@ class ImageDataset(Dataset):
         classes:Optional[List]=None,
         shard:int = 0,
         num_shards:int =1,
-      #  random_crop:bool = False,
+        random_crop:bool = False,
         random_flip: bool = False,
     ):
         super().__init__()
@@ -154,7 +154,7 @@ class ImageDataset(Dataset):
         self.mask_map = mask_map
       #  self.local_images = image_paths[shard:][::num_shards]
         self.local_classes = None if classes is None else classes[shard:][::num_shards]
-    #    self.random_crop = random_crop
+        self.random_crop = random_crop
         self.random_flip = random_flip
 
     # Build a list of all slices from all files
