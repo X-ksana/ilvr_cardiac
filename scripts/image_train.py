@@ -76,6 +76,8 @@ def main():
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
+        mask_dir=args.mask_dir,
+        num_mask_classes=args.num_mask_classes,
     )
 
     logger.log("training...")
@@ -117,6 +119,11 @@ def create_argparser():
         use_fp16=False,
         fp16_scale_growth=1e-3,
         seed=42,# for reproducibility
+        log_dir="",
+        in_channels=2,
+        out_channels=2,
+        mask_dir=None,
+        num_mask_classes=4,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
