@@ -58,7 +58,6 @@ def main():
 
     wandb.init(
       project="DDA_Cardiac",
-      wandb_entity=None, #  username
       name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
       config=wandb_config
     )
