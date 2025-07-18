@@ -112,9 +112,9 @@ def load_and_process_npy_pair(
 
     one_hot_mask = one_hot_encode_mask(mask_slice, num_mask_classes, drop_background)
     combined_tensor = torch.cat([image_tensor, one_hot_mask], dim=0)
-    print("Combined tensor shape:", combined_tensor.shape)
+   # print("Combined tensor shape:", combined_tensor.shape)
     total_channels = combined_tensor.shape[0]
-    print("Total channels:",total_channels)
+   # print("Total channels:",total_channels)
 
     return combined_tensor, total_channels
 
