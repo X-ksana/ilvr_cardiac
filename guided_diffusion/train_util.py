@@ -206,7 +206,7 @@ class TrainLoop:
         device = next(self.model.parameters()).device
 
         # Generate small batch of samples
-        num_samples_to_log = 16
+        num_samples_to_log = 6
         shape = (num_samples_to_log, self.model.in_channels, self.model.image_size, self.model.image_size) #  flex in channels
 
         # In case conditional
@@ -260,7 +260,7 @@ class TrainLoop:
                 }
             )
         )
-        wandb.log({"validation_samples": log_list})
+        wandb.log({"validation_samples": log_list},"step": self.step)
         # Log images to wandb
        # wandb.log({
        #     "samples":[wandb.Image(sample) for sample in samples]
