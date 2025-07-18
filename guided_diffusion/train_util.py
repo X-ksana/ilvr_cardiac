@@ -224,7 +224,7 @@ class TrainLoop:
         # Convert samples to the format wandb expects for images
         # Rescale from [-1,1] to [0,255] and convert to numpy
         # Bear in mind 2 channels, one is binary cardiac mri, one is mask in 4 classes
-        samples = ((samples+1)*127.5).clamp(0,255).to(th.unit8)
+        samples = ((samples+1)*127.5).clamp(0,255).to(th.uint8)
         samples = samples.permute(0,2,3,1) # NCHW to NHWC
         samples = samples.contiguous().cpu().numpy
 
