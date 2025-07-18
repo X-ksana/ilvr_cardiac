@@ -260,7 +260,7 @@ class TrainLoop:
                 }
             )
         )
-        wandb.log({"validation_samples": log_list},"step": self.step)
+        wandb.log({"validation_samples": log_list, "step": self.step})
         # Log images to wandb
        # wandb.log({
        #     "samples":[wandb.Image(sample) for sample in samples]
