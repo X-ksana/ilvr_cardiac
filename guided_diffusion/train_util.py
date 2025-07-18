@@ -224,14 +224,46 @@ class TrainLoop:
         # Convert samples to the format wandb expects for images
         # Rescale from [-1,1] to [0,255] and convert to numpy
         # Bear in mind 2 channels, one is binary cardiac mri, one is mask in 4 classes
+        # 1. De-normalize the entire batch from [-1, 1] to [0, 1] range
+        samples = (samples + 1) / 2.0
+    # 2. Split the 4-channel output into image and mask
+    #    Channel 0 is the image. Channels 1, 2, 3 are the mask classes.
+        image_channels = samples[:, :1, :, :]  # Shape: (N, 1, H, W)
+        mask_channels = samples[:, 1:, :, :]   # Shape: (N, 3, H, W)
+        categorical_masks = th.argmax(mask_channels, dim=1).cpu().numpy() + 1
+        image_channels = image_channels.clamp(0, 1)
+        images_for_log = (image_channels * 255).to(th.uint8)
+        images_for_log = images_for_log.repeat(1, 3, 1, 1) # (N, 1, H, W) -> (N, 3, H, W)
+        images_for_log = images_for_log.permute(0, 2, 3, 1) # (N, C, H, W) -> (N, H, W, C)
+        images_for_log = images_for_log.contiguous().cpu().numpy()
+
+        """
         samples = ((samples+1)*127.5).clamp(0,255).to(th.uint8)
         samples = samples.permute(0,2,3,1) # NCHW to NHWC
         samples = samples.contiguous().cpu().numpy
-
+        """
+        # 5. Log to Weights & Biases using their segmentation mask format
+        log_list = []
+        for i in range(num_samples_to_log):
+            log_list.append(
+                wandb.Image(
+                    images_for_log[i],
+                    masks={
+                    "predictions": {
+                        "mask_data": categorical_masks[i],
+                        "class_labels": {
+                            1: "LV",
+                            2: "Myo",
+                            3: "RV"
+                        }
+                    }
+                }
+            )
+        )
         # Log images to wandb
-        wandb.log({
-            "samples":[wandb.Image(sample) for sample in samples]
-        })
+       # wandb.log({
+       #     "samples":[wandb.Image(sample) for sample in samples]
+       # })
 
         self.model.train()
 
