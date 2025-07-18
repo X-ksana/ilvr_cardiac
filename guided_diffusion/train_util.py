@@ -215,7 +215,7 @@ class TrainLoop:
             classes = th.randint(low=0, high=self.model.num_classes, size=(num_samples_to_log,), device=device)
             model_kwargs["y"] = classes
 
-        samples = self.diffusion.p_sample_loop(
+        samples = self.diffusion.p_sample_loop_validate(
             self.model,
             shape,
             clip_denoised=True,
