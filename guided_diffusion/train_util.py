@@ -43,7 +43,7 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
-        log_samples_interval=500, # Control sample logging frequency for wandb
+        log_samples_interval=1000, # Control sample logging frequency for wandb
         seed=42,
     ):
         self.model = model
@@ -70,6 +70,8 @@ class TrainLoop:
         self.step = 0
         self.resume_step = 0
         self.global_batch = self.batch_size * dist.get_world_size()
+        self.best_loss = float('inf')
+
 
         self.sync_cuda = th.cuda.is_available()
 
@@ -188,11 +190,51 @@ class TrainLoop:
                 # Run for a finite amount of time in integration tests.
                 if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                     return
+            if self.last_loss < self.best_loss:
+                self.best_loss = self.last_loss
+                self.save_best_checkpoint()
+            
             self.step += 1
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
             self.save()
 
+
+    # ---Best checkpoint and overwrite the previous one ---
+    def save_best_checkpoint(self):
+        """
+        Saves the model, EMA, and optimizer states for the best performing model
+        and removes the previous best checkpoint.
+        """
+        # Helper
+        def _save_and_cleanup(suffix, data_to_save):
+            # Define the new best checkpoint filename
+            new_filename = f"best_{suffix}_{(self.step+self.resume_step):06d}.pt"
+            
+            # Find and delete the old best checkpoint for this suffix (e.g., 'best_model_*.pt')
+            old_checkpoints = bf.glob(bf.join(get_blob_logdir(), f"best_{suffix}_*.pt"))
+            for old_ckpt in old_checkpoints:
+                if os.path.basename(old_ckpt) != new_filename:
+                    logger.log(f"Removing old best checkpoint: {old_ckpt}")
+                    bf.remove(old_ckpt)
+
+            # Save the new best checkpoint
+            with bf.BlobFile(bf.join(get_blob_logdir(), new_filename), "wb") as f:
+                th.save(data_to_save, f)
+
+        logger.log(f"Saving new best checkpoint at step {self.step}...")
+
+        # Save the main model parameters
+        model_state_dict = self.mp_trainer.master_params_to_state_dict(self.mp_trainer.master_params)
+        _save_and_cleanup("model", model_state_dict)
+
+        # Save the EMA parameters
+        for rate, params in zip(self.ema_rate, self.ema_params):
+            ema_state_dict = self.mp_trainer.master_params_to_state_dict(params)
+            _save_and_cleanup(f"ema_{rate}", ema_state_dict)
+        
+        # Save the optimizer state
+        _save_and_cleanup("opt", self.opt.state_dict())
     
     # Add to TrainLoop class
 
@@ -277,6 +319,8 @@ class TrainLoop:
             self._update_ema()
         self._anneal_lr()
         self.log_step()
+        #store the last loss for  best checkpoint
+        self.last_loss = self.current_loss # set this in forward_backward
 
     def forward_backward(self, batch, cond):
         self.mp_trainer.zero_grad()
@@ -309,6 +353,7 @@ class TrainLoop:
                 )
 
             loss = (losses["loss"] * weights).mean()
+            self.current_loss = loss.item()  # Add this line
             log_loss_dict(
                 self.diffusion, t, {k: v * weights for k, v in losses.items()}
             )

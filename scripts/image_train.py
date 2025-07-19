@@ -59,6 +59,7 @@ def main():
 
 
     logger.configure(
+        dir=args.log_dir,
         format_strs=["stdout", "log", "csv", "wandb"], # Add "wandb" here
         wandb_project="DDA_Cardiac",
         wandb_name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
