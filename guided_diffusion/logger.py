@@ -205,7 +205,7 @@ def make_output_format(format, ev_dir, log_suffix="",wandb_project=None, wandb_e
     elif format == "wandb":
         # Expects project, entity, and name to be passed in kwargs
         return WandbOutputFormat(
-            wandb_project, wandb_entity, wandb_name, wandb_config
+            wandb_project, wandb_entity, wandb_name, wandb_config, wandb_resume_id
         )
     else:
         raise ValueError("Unknown format specified: %s" % (format,))
@@ -513,7 +513,10 @@ class WandbOutputFormat(KVWriter):
       name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
       config=wandb_config
         """
-        wandb.init(project=project, entity=entity, name=name, config=config)
+        if resume_id:
+            wandb.init(project=project, entity=entity, name=name, config=config, id=resume_id,resume="must")
+        else:
+            wandb.init(project=project, entity=entity, name=name, config=config)
 
     def writekvs(self, kvs):
         # wandb.log expects single dictionary

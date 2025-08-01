@@ -12,6 +12,8 @@ import torch
 import os
 import nibabel as nib # for loading nifti files
 from .data_preprocessing_helpers import load_and_process_npy_pair,normalise_to_model_range
+from torchvision import transforms
+from . import dist_util
 
 if TYPE_CHECKING:
     from typing import Tuple
@@ -19,6 +21,11 @@ if TYPE_CHECKING:
     # This prevents circular import issues
     class ImageDataset(Dataset):
         pass
+
+
+
+
+
 
 
 def load_data(
@@ -263,3 +270,47 @@ def random_crop_arr(pil_image, image_size, min_crop_frac=0.8, max_crop_frac=1.0)
     crop_y = random.randrange(arr.shape[0] - image_size + 1)
     crop_x = random.randrange(arr.shape[1] - image_size + 1)
     return arr[crop_y : crop_y + image_size, crop_x : crop_x + image_size]
+
+
+# Need to add load single-channel reference image, add a noise channel for the mask (for png)
+def load_reference_data_png(data_dir, batch_size, image_size):
+    """
+    Loads a reference image, normalizes it, and adds a noise channel for the mask.
+    This prepares a 2-channel tensor that matches the model's training input.
+    """
+    if not data_dir:
+        raise ValueError("A reference directory must be provided with --ref_dir")
+    
+    all_files = _list_image_files_recursively(data_dir)
+    
+    # Define a transform to resize and normalize the reference images
+    transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.CenterCrop(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,)), # Normalizes single channel to [-1, 1]
+    ])
+
+    # Create batches of reference images
+    for i in range(0, len(all_files), batch_size):
+        batch_files = all_files[i:i+batch_size]
+        ref_images = []
+        for path in batch_files:
+            with open(path, "rb") as f:
+                # Open as grayscale ('L')
+                img = Image.open(f).convert("L")
+                ref_images.append(transform(img))
+
+        # Stack single-channel images into a batch tensor
+        ref_image_tensor = torch.stack(ref_images, dim=0)
+        
+        # Create a noise channel of the same shape for the mask
+        ref_mask_noise = torch.randn_like(ref_image_tensor)
+        
+        # Concatenate to create the 2-channel reference tensor (image + noisy mask)
+        ref_tensor = torch.cat([ref_image_tensor, ref_mask_noise], dim=1)
+        
+        # Prepare the model_kwargs dictionary
+        model_kwargs = {}
+        model_kwargs["ref_img"] = ref_tensor.to(dist_util.dev())
+        yield model_kwargs

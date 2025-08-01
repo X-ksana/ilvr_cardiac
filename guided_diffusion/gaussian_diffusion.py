@@ -653,6 +653,132 @@ class GaussianDiffusion:
                 img = out["sample"]
                 img = img.detach_()
 
+    def p_sample_loop_dda(
+        self,
+        model,
+        shape,
+        noise=None,
+        clip_denoised=True,
+        denoised_fn=None,
+        cond_fn=None,
+        model_kwargs=None,
+        device=None,
+        progress=False,
+        N=None,
+        D=8,
+        scale=1, 
+    ):
+        """
+        Edit to support dda
+        - remove resizers, range_t
+        - add N, D, and scale
+
+        Generate samples from the model.
+
+        :param model: the model module.
+        :param shape: the shape of the samples, (N, C, H, W).
+        :param noise: if specified, the noise from the encoder to sample.
+                      Should be of the same shape as `shape`.
+        :param clip_denoised: if True, clip x_start predictions to [-1, 1].
+        :param denoised_fn: if not None, a function which applies to the
+            x_start prediction before it is used to sample.
+        :param cond_fn: if not None, this is a gradient function that acts
+                        similarly to the model.
+        :param model_kwargs: if not None, a dict of extra keyword arguments to
+            pass to the model. This can be used for conditioning.
+        :param device: if specified, the device to create the samples on.
+                       If not specified, use a model parameter's device.
+        :param progress: if True, show a tqdm progress bar.
+        :return: a non-differentiable batch of samples.
+        """
+        final = None
+        for sample in self.p_sample_loop_progressive_dda(
+            model,
+            shape,
+            noise=noise,
+            clip_denoised=clip_denoised,
+            denoised_fn=denoised_fn,
+            cond_fn=cond_fn,
+            model_kwargs=model_kwargs,
+            device=device,
+            progress=progress,
+            N=N,
+            D=D,
+            scale=scale,
+        ):
+            final = sample
+
+        return final["sample"]
+
+    
+
+    def p_sample_loop_progressive_dda(
+        self,
+        model,
+        shape,
+        noise=None,
+        clip_denoised=True,
+        denoised_fn=None,
+        cond_fn=None,
+        model_kwargs=None,
+        device=None,
+        progress=False,
+        N=None,
+        D=8,
+        scale=1, 
+    ):
+        """
+        Generate samples from the model and yield intermediate samples from
+        each timestep of diffusion.
+
+        Arguments are the same as p_sample_loop().
+        Returns a generator over dicts, where each dict is the return value of
+        p_sample().
+        """
+        if device is None:
+            device = next(model.parameters()).device
+        assert isinstance(shape, (tuple, list))
+        if noise is not None:
+            img = noise
+        else:
+            img = th.randn(*shape, device=device)
+        indices = list(range(self.num_timesteps))[::-1]
+
+        if progress:
+            # Lazy import so that we don't depend on tqdm.
+            from tqdm.auto import tqdm
+
+            indices = tqdm(indices)
+        # for dda, we need to have $/phi_D$ as linear low-filter pass
+        # shape_u = (shape[0], 3, shape[2], shape[3]) # upsampled/original shape (batch, 3, height, width)
+        # shape_d = (shape[0], 3, int(shape[2] /D) , int(shape[3] /D)) # downsampled shape (batch, 3, height/D, width/D)
+
+        # Image + 3 channels for mask
+
+
+        for i in indices:
+            t = th.tensor([i] * shape[0], device=device)
+            with th.no_grad():
+                out = self.p_sample(
+                    model,
+                    img,
+                    t,
+                    clip_denoised=clip_denoised,
+                    denoised_fn=denoised_fn,
+                    cond_fn=cond_fn,
+                    model_kwargs=model_kwargs,
+                )
+                # calculate the difference
+
+                difference = resize(resize(model_kwargs["ref_img"], scale_factors=1.0/D, out_shape=shape_d), scale_factors=D, out_shape=shape_u) - resize(resize(out["pred_xstart"], scale_factors=1.0/D, out_shape=shape_d), scale_factors=D, out_shape=shape_u)
+                norm = th.linalg.norm(difference)
+                norm_grad = th.autograd.grad(outputs=norm, inputs=img)[0]
+                out["sample"] -= norm_grad * scale
+
+                yield out
+                img = out["sample"]
+                img = img.detach_()
+
     def ddim_sample(
         self,
         model,

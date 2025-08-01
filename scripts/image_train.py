@@ -63,7 +63,8 @@ def main():
         format_strs=["stdout", "log", "csv", "wandb"], # Add "wandb" here
         wandb_project="DDA_Cardiac",
         wandb_name=f"DDAC-{args.diffusion_steps}-{args.image_size}",
-        wandb_config=wandb_config
+        wandb_config=wandb_config,
+        wandb_resume_id=args.resume_wandb_id
     )
 
     logger.log("creating model and diffusion...")
@@ -119,6 +120,7 @@ def create_argparser():
         log_samples_interval=50, # wandb
         save_interval=10000,
         resume_checkpoint="",
+        resume_wandb_id="", # To resume a specific W&B run
         use_fp16=False,
         fp16_scale_growth=1e-3,
         seed=42,# for reproducibility
