@@ -190,7 +190,7 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer = None
 
 
-def make_output_format(format, ev_dir, log_suffix="",wandb_project=None, wandb_entity=None,wandb_name=None, wandb_config=None):
+def make_output_format(format, ev_dir, log_suffix="",wandb_project=None, wandb_entity=None,wandb_name=None, wandb_config=None, wandb_resume_id=None):
     os.makedirs(ev_dir, exist_ok=True)
     if format == "stdout":
         return HumanOutputFormat(sys.stdout)
