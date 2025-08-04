@@ -37,7 +37,7 @@ mkdir -p /scratch/scxcw/results/July2025_dm/128_log_1000_mask
 # With learn_sigma=True: 4 output channels (2 * 2)
 python scripts/image_train.py \
     --resume_checkpoint /scratch/scxcw/results/July2025_dm/128_log_1000_mask/model330000.pt \
-    --resume_wandb_id vluyocdn \ 
+    --resume_wandb_id vluyocdn \
     --data_dir /scratch/scxcw/datasets/cardiac/nnUNet_preprocessed_2/Dataset114_MNMs/nnUNetPlans_2d \
     --log_dir /scratch/scxcw/results/July2025_dm/128_log_1000_mask \
     --attention_resolutions 16 \
