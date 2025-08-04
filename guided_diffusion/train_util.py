@@ -125,6 +125,7 @@ class TrainLoop:
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
             if dist.get_rank() == 0:
                 logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
+                logger.log(f"Resuming from step: {self.resume_step}")
                 # 1. load ckpt into single state_dict variable
                 state_dict = dist_util.load_state_dict(
                     resume_checkpoint, map_location=dist_util.dev()

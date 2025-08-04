@@ -520,7 +520,11 @@ class WandbOutputFormat(KVWriter):
 
     def writekvs(self, kvs):
         # wandb.log expects single dictionary
-        wandb.log(kvs)
+        # If there's a step key, use it for wandb step tracking
+        if 'step' in kvs:
+            wandb.log(kvs, step=kvs['step'])
+        else:
+            wandb.log(kvs)
 
     def close(self):
         wandb.finish()
