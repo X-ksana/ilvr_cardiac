@@ -506,7 +506,7 @@ class WandbOutputFormat(KVWriter):
     Dumps key/value pairs into weights and biases
     """
 
-    def __init__(self, project, entity, name,config=None):
+    def __init__(self, project, entity, name,config=None, resume_id=None):
         # Initialise W&B
         """
         project="DDA_Cardiac",
