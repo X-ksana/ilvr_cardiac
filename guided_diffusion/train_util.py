@@ -130,7 +130,9 @@ class TrainLoop:
                     resume_checkpoint, map_location=dist_util.dev()
                 )
                 # 2. Restore the model and optimizer state
-                self.mp_trainer.load_state_dict(state_dict)
+               # self.mp_trainer.load_state_dict(state_dict)
+                self.model.load_state_dict(state_dict)
+
 
                 # 3. Restore the rng
                 try:
