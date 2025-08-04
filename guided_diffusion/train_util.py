@@ -160,12 +160,27 @@ class TrainLoop:
 
                 # 3. Restore the rng
                 try:
-                    th.set_rng_state(state_dict["torch_rng_state"])
-                    th.cuda.set_rng_state(state_dict["cuda_rng_state"])
-                    np.random.set_state(state_dict["numpy_rng_state"])
-                    random.setstate(state_dict["random_rng_state"])
-                except KeyError:
-                    logger.log("Could not find RNG states in checkpoint. Starting with new random state.")
+                    # Convert RNG states to proper format
+                    if "torch_rng_state" in state_dict:
+                        torch_rng = state_dict["torch_rng_state"]
+                        if isinstance(torch_rng, th.Tensor):
+                            torch_rng = torch_rng.to(th.uint8)
+                        th.set_rng_state(torch_rng)
+                    
+                    if "cuda_rng_state" in state_dict:
+                        cuda_rng = state_dict["cuda_rng_state"]
+                        if isinstance(cuda_rng, th.Tensor):
+                            cuda_rng = cuda_rng.to(th.uint8)
+                        th.cuda.set_rng_state(cuda_rng)
+                    
+                    if "numpy_rng_state" in state_dict:
+                        np.random.set_state(state_dict["numpy_rng_state"])
+                    
+                    if "random_rng_state" in state_dict:
+                        random.setstate(state_dict["random_rng_state"])
+                        
+                except (KeyError, TypeError) as e:
+                    logger.log(f"Could not restore RNG states from checkpoint: {e}. Starting with new random state.")
                 
 
         dist_util.sync_params(self.model.parameters())
