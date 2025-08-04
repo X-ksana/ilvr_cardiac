@@ -129,9 +129,33 @@ class TrainLoop:
                 state_dict = dist_util.load_state_dict(
                     resume_checkpoint, map_location=dist_util.dev()
                 )
-                # 2. Restore the model and optimizer state
-               # self.mp_trainer.load_state_dict(state_dict)
-                self.model.load_state_dict(state_dict)
+                                # 2. Restore the model state
+                # Filter out non-model keys from state_dict
+                model_state_dict = {}
+                rng_states = {}
+                
+                for key, value in state_dict.items():
+                    if key in ["torch_rng_state", "cuda_rng_state", "numpy_rng_state", "random_rng_state"]:
+                        rng_states[key] = value
+                    else:
+                        model_state_dict[key] = value
+                
+                try:
+                    self.model.load_state_dict(model_state_dict)
+                except RuntimeError as e:
+                    if "size mismatch" in str(e):
+                        logger.log(f"WARNING: Model architecture mismatch when loading checkpoint: {e}")
+                        logger.log("This usually means the model parameters have changed between training runs.")
+                        logger.log("Please ensure the following parameters match your checkpoint:")
+                        logger.log("- image_size")
+                        logger.log("- num_channels") 
+                        logger.log("- channel_mult")
+                        logger.log("- in_channels")
+                        logger.log("- learn_sigma")
+                        logger.log("You can use the check_checkpoint_params.py script to analyze your checkpoint.")
+                        raise e
+                    else:
+                        raise e
 
 
                 # 3. Restore the rng

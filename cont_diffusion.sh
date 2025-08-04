@@ -44,7 +44,7 @@ python scripts/image_train.py \
     --class_cond False \
     --diffusion_steps 3000 \
     --dropout 0.0 \
-    --image_size 256 \
+    --image_size 128 \
     --learn_sigma True \
     --noise_schedule linear \
     --num_channels 128 \
