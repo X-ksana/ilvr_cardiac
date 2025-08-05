@@ -16,6 +16,7 @@ start_time=`date +%s`
 echo "Job started at: $(date)"
 
 # Add current directory to PYTHONPATH
+cd /users/scxcw/ilvr_cardiac
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 
 # Define the values for D and N
